@@ -8,9 +8,6 @@ import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.View;
 
-import java.util.Calendar;
-import java.util.Date;
-
 public class Clock extends View {
 
     private final static String TAG = Clock.class.getSimpleName();
@@ -31,9 +28,6 @@ public class Clock extends View {
 
     private float PANEL_RADIUS = 200.0f;// 表盘半径
 
-    private float HOUR_POINTER_LENGTH;// 指针长度
-    private float MINUTE_POINTER_LENGTH;
-    private float SECOND_POINTER_LENGTH;
     private float UNIT_DEGREE = (float) (6 * Math.PI / 180);// 一个小格的度数
 
     private int mWidth, mCenterX, mCenterY, mRadius;
@@ -97,18 +91,16 @@ public class Clock extends View {
         mCenterY = halfWidth;
         mRadius = halfWidth;
         PANEL_RADIUS = mRadius;
-        HOUR_POINTER_LENGTH = PANEL_RADIUS - 400;
-        MINUTE_POINTER_LENGTH = PANEL_RADIUS - 250;
-        SECOND_POINTER_LENGTH = PANEL_RADIUS - 150;
 
         drawDegrees(canvas);
         drawHoursValues(canvas);
-        drawNeedles(canvas);
 
-        // todo 每一秒刷新一次，让指针动起来
+        // todo 每一秒刷新一次，让指针动起来 OK
+        //MainActivity里使用Handler刷新
 
     }
 
+    //表盘
     private void drawDegrees(Canvas canvas) {
 
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -118,21 +110,26 @@ public class Clock extends View {
         paint.setColor(degreesColor);
 
         int rPadded = mCenterX - (int) (mWidth * 0.01f);
-        int rEnd = mCenterX - (int) (mWidth * 0.05f);
+        int rEnd = mCenterX - (int) (mWidth * 0.03f);
+        int longEnd = mCenterX - (int) (mWidth * 0.05f);
+        int stopX;
+        int stopY;
 
         for (int i = 0; i < FULL_ANGLE; i += 6 /* Step */) {
 
-            if ((i % RIGHT_ANGLE) != 0 && (i % 15) != 0)
+            if ((i % RIGHT_ANGLE) != 0 && (i % 15) != 0) {
                 paint.setAlpha(CUSTOM_ALPHA);
-            else {
+                stopX = (int) (mCenterX + rEnd * Math.cos(Math.toRadians(i)));
+                stopY = (int) (mCenterX - rEnd * Math.sin(Math.toRadians(i)));
+            } else {
                 paint.setAlpha(FULL_ALPHA);
+                stopX = (int) (mCenterX + longEnd * Math.cos(Math.toRadians(i)));
+                stopY = (int) (mCenterX - longEnd * Math.sin(Math.toRadians(i)));
             }
 
             int startX = (int) (mCenterX + rPadded * Math.cos(Math.toRadians(i)));
             int startY = (int) (mCenterX - rPadded * Math.sin(Math.toRadians(i)));
 
-            int stopX = (int) (mCenterX + rEnd * Math.cos(Math.toRadians(i)));
-            int stopY = (int) (mCenterX - rEnd * Math.sin(Math.toRadians(i)));
 
             canvas.drawLine(startX, startY, stopX, stopY, paint);
 
@@ -140,6 +137,7 @@ public class Clock extends View {
     }
 
     /**
+     * 表盘小时数字
      * Draw Hour Text Values, such as 1 2 3 ...
      *
      * @param canvas
@@ -147,67 +145,29 @@ public class Clock extends View {
     private void drawHoursValues(Canvas canvas) {
         // Default Color:
         // - hoursValuesColor
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(degreesColor);
+        paint.setTextSize(50f);
+        paint.setTextAlign(Paint.Align.CENTER);
+        Paint.FontMetrics fontMetrics = paint.getFontMetrics();
 
+        int rText = mCenterX - (int) (mWidth * 0.10f);
+        float biasY = (Math.abs(fontMetrics.ascent) - fontMetrics.descent) / 2;
 
-    }
+        for (int i = 0; i < FULL_ANGLE; i += 30 /* Step */) {
 
-    /**
-     * Draw hours, minutes needles
-     * Draw progress that indicates hours needle disposition.
-     *
-     * @param canvas
-     */
-    private void drawNeedles(final Canvas canvas) {
-        Calendar calendar = Calendar.getInstance();
-        Date now = calendar.getTime();
-        int nowHours = now.getHours();
-        int nowMinutes = now.getMinutes();
-        int nowSeconds = now.getSeconds();
-        // 画秒针
-        drawPointer(canvas, 2, nowSeconds);
-        // 画分针
-        // todo 画分针
-        // 画时针
-        int part = nowMinutes / 12;
-        drawPointer(canvas, 0, 5 * nowHours + part);
+            float startX = (float) (mCenterX + rText * Math.sin(Math.toRadians(i)));
+            float startY = (float) (mCenterX - rText * Math.cos(Math.toRadians(i))) + biasY;
 
+            if (i == 0) {
+                canvas.drawText(String.valueOf(12), startX, startY, paint);
+            } else {
+                canvas.drawText(String.valueOf((i / 30)), startX, startY, paint);
+            }
 
-    }
-
-
-    private void drawPointer(Canvas canvas, int pointerType, int value) {
-
-        float degree;
-        float[] pointerHeadXY = new float[2];
-
-        mNeedlePaint.setStrokeWidth(mWidth * DEFAULT_DEGREE_STROKE_WIDTH);
-        switch (pointerType) {
-            case 0:
-                degree = value * UNIT_DEGREE;
-                mNeedlePaint.setColor(Color.WHITE);
-                pointerHeadXY = getPointerHeadXY(HOUR_POINTER_LENGTH, degree);
-                break;
-            case 1:
-                // todo 画分针，设置分针的颜色
-
-                break;
-            case 2:
-                degree = value * UNIT_DEGREE;
-                mNeedlePaint.setColor(Color.GREEN);
-                pointerHeadXY = getPointerHeadXY(SECOND_POINTER_LENGTH, degree);
-                break;
         }
 
 
-        canvas.drawLine(mCenterX, mCenterY, pointerHeadXY[0], pointerHeadXY[1], mNeedlePaint);
     }
-
-    private float[] getPointerHeadXY(float pointerLength, float degree) {
-        float[] xy = new float[2];
-        xy[0] = (float) (mCenterX + pointerLength * Math.sin(degree));
-        xy[1] = (float) (mCenterY - pointerLength * Math.cos(degree));
-        return xy;
-    }
-
 
 }
